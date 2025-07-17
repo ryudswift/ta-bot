@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Technical Analysis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --text-color: #111827;
+            --card-bg: #f9fafb;
+            --border-color: #e5e7eb;
+            --primary-color: #3b82f6;
+            --success-color: #10b981;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+        }
+
+        .dark-theme {
+            --bg-color: #0f172a;
+            --text-color: #f8fafc;
+            --card-bg: #1e293b;
+            --border-color: #334155;
+            --primary-color: #60a5fa;
+            --success-color: #34d399;
+            --danger-color: #f87171;
+            --warning-color: #fbbf24;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+        .spinner {
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-top: 2px solid #3B82F6;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+        
+        .confluence-item {
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        
+        .confluence-item.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .signal-go {
+            background-color: rgba(34, 197, 94, 0.2);
+            border: 1px solid #22C55E;
+            color: #22C55E;
+        }
+        
+        .signal-caution {
+            background-color: rgba(234, 179, 8, 0.2);
+            border: 1px solid #EAB308;
+            color: #EAB308;
+        }
+        
+        .signal-no {
+            background-color: rgba(239, 68, 68, 0.2);
+            border: 1px solid #EF4444;
+            color: #EF4444;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+    <div class="max-w-7xl mx-auto px-4 py-6">
+        <!-- Header -->
+        <header class="mb-8 relative">
+            <div class="flex justify-between items-center">
+                <button id="menuButton" class="p-2 rounded-lg hover:bg-gray-800">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
+                <div>
+                    <h1 class="text-3xl font-bold text-center bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent">
+                        AI-Powered Technical Analysis
+                    </h1>
+                    <p class="text-center text-gray-400 mt-2">Advanced market insights powered by AI</p>
+                </div>
+                <div class="w-10"></div> <!-- Spacer for balance -->
+            </div>
+
+            <!-- Menu Dropdown -->
+            <div id="menuDropdown" class="hidden absolute left-0 mt-2 w-64 bg-gray-800 rounded-lg shadow-lg z-50 p-4">
+                <div class="mb-6">
+                    <h3 class="font-semibold mb-2">API Settings</h3>
+                    <div class="space-y-2">
+                        <input type="text" id="tradingviewApiKey" placeholder="TradingView API Key" class="w-full px-3 py-2 bg-gray-700 rounded">
+                        <input type="text" id="geminiApiKey" placeholder="Gemini API Key" class="w-full px-3 py-2 bg-gray-700 rounded">
+                        <button onclick="saveApiKeys()" class="w-full py-2 bg-blue-600 rounded">Save API Keys</button>
+                    </div>
+                </div>
+                
+                <div>
+                    <h3 class="font-semibold mb-2">Portfolio</h3>
+                    <div class="space-y-2">
+                        <input type="number" id="accountSize" placeholder="Account Size ($)" class="w-full px-3 py-2 bg-gray-700 rounded">
+                        <input type="number" id="riskPerTrade" placeholder="Risk per Trade (%)" class="w-full px-3 py-2 bg-gray-700 rounded">
+                        <textarea id="tradingPlan" placeholder="Your Trading Plan" class="w-full px-3 py-2 bg-gray-700 rounded"></textarea>
+                        <button onclick="savePortfolioSettings()" class="w-full py-2 bg-blue-600 rounded">Save Portfolio</button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Input Section -->
+        <div class="flex gap-4 mb-6 max-w-md mx-auto">
+            <input 
+                type="text" 
+                id="tickerInput" 
+                placeholder="Enter ticker symbol (e.g., AAPL, BTCUSD)" 
+                class="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:border-blue-500 transition-colors"
+                value="AAPL"
+            >
+            <button 
+                onclick="loadChart()" 
+                class="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
+            >
+                Load Chart
+            </button>
+        </div>
+
+        <!-- Chart Container -->
+        <div class="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-lg p-4 mb-6">
+            <div id="chartContainer" class="relative h-[60vh]">
+                <div id="chart" class="h-full"></div>
+                <div id="watermark" class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <span class="text-6xl font-bold text-gray-400 opacity-20" id="watermarkText">AAPL</span>
+                </div>
+                <div id="chartPlaceholder" class="absolute inset-0 flex items-center justify-center">
+                    <img src="https://via.placeholder.com/800x500/1e293b/64748b?text=Loading+Chart..." alt="Chart Placeholder" class="max-w-full max-h-full">
+                </div>
+            </div>
+        </div>
+
+        <!-- Analysis Button -->
+        <div class="mb-6">
+            <button 
+                onclick="analyzeChart()" 
+                class="w-full px-6 py-3 bg-[var(--primary-color)] hover:opacity-90 rounded-lg font-medium transition-colors text-center"
+            >
+                Analyze Chart (Snipe Methodology)
+            </button>
+        </div>
+
+        <!-- Analysis Output -->
+        <div id="analysisOutput" class="hidden">
+            <div class="bg-gray-800 rounded-lg p-6">
+                <h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                    Analysis Results
+                    <div id="loadingSpinner" class="spinner hidden"></div>
+                </h2>
+                
+                <!-- Confluence Checklist -->
+                <div id="confluenceChecklist" class="space-y-2 mb-6 hidden">
+                    <h3 class="font-medium text-lg">Confluence Checklist</h3>
+                    <div id="confluenceItems" class="space-y-2"></div>
+                </div>
+                
+                <!-- Go/No-Go Signal -->
+                <div id="goNoGoSignal" class="hidden mb-6">
+                    <div id="signalStatus" class="text-center py-4 px-6 rounded-lg font-bold text-xl">
+                        <div id="confluenceCount" class="mb-2"></div>
+                        <div id="signalMessage"></div>
+                    </div>
+                </div>
+                
+                <!-- Trade Setup -->
+                <div id="tradeSetup" class="hidden">
+                    <div id="analysisContent" class="prose prose-invert max-w-none">
+                        <!-- Analysis content will be inserted here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let chart;
+        let candlestickSeries;
+        let currentTicker = 'AAPL';
+
+        // Initialize chart
+        function initChart() {
+            const chartContainer = document.getElementById('chart');
+            chart = LightweightCharts.createChart(chartContainer, {
+                width: chartContainer.clientWidth,
+                height: chartContainer.clientHeight,
+                layout: {
+                    background: { type: 'solid', color: 'transparent' },
+                    textColor: '#d1d4dc',
+                },
+                grid: {
+                    vertLines: { color: 'rgba(42, 46, 57, 0.5)' },
+                    horzLines: { color: 'rgba(42, 46, 57, 0.5)' },
+                },
+                crosshair: {
+                    mode: LightweightCharts.CrosshairMode.Normal,
+                },
+                rightPriceScale: {
+                    borderColor: 'rgba(197, 203, 206, 0.8)',
+                },
+                timeScale: {
+                    borderColor: 'rgba(197, 203, 206, 0.8)',
+                    timeVisible: true,
+                    secondsVisible: false,
+                },
+            });
+
+            candlestickSeries = chart.addCandlestickSeries({
+                upColor: '#22C55E',
+                downColor: '#EF4444',
+                borderDownColor: '#EF4444',
+                borderUpColor: '#22C55E',
+                wickDownColor: '#EF4444',
+                wickUpColor: '#22C55E',
+            });
+
+            // Handle resize
+            window.addEventListener('resize', () => {
+                chart.applyOptions({
+                    width: chartContainer.clientWidth,
+                    height: chartContainer.clientHeight,
+                });
+            });
+        }
+
+        // Generate mock data
+        function generateMockData() {
+            const data = [];
+            const days = 200;
+            let price = 150 + Math.random() * 50;
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - days);
+
+            for (let i = 0; i < days; i++) {
+                const date = new Date(startDate);
+                date.setDate(date.getDate() + i);
+                
+                const volatility = 0.02;
+                const trend = Math.random() > 0.5 ? 0.01 : -0.01;
+                
+                const open = price;
+                const close = open * (1 + trend + (Math.random() - 0.5) * volatility);
+                const high = Math.max(open, close) * (1 + Math.random() * 0.01);
+                const low = Math.min(open, close) * (1 - Math.random() * 0.01);
+                
+                data.push({
+                    time: date.getTime() / 1000,
+                    open: parseFloat(open.toFixed(2)),
+                    high: parseFloat(high.toFixed(2)),
+                    low: parseFloat(low.toFixed(2)),
+                    close: parseFloat(close.toFixed(2)),
+                });
+                
+                price = close;
+            }
+            
+            return data;
+        }
+
+        // Load chart with new ticker
+        function loadChart() {
+            const ticker = document.getElementById('tickerInput').value.toUpperCase();
+            if (!ticker) return;
+
+            currentTicker = ticker;
+            document.getElementById('watermarkText').textContent = ticker;
+            
+            const data = generateMockData();
+            candlestickSeries.setData(data);
+            
+            // Fit content
+            chart.timeScale().fitContent();
+        }
+
+        // Analyze chart
+        async function analyzeChart(type) {
+            const output = document.getElementById('analysisOutput');
+            const content = document.getElementById('analysisContent');
+            const spinner = document.getElementById('loadingSpinner');
+            const confluenceChecklist = document.getElementById('confluenceChecklist');
+            const confluenceItems = document.getElementById('confluenceItems');
+            const goNoGoSignal = document.getElementById('goNoGoSignal');
+            const tradeSetup = document.getElementById('tradeSetup');
+            
+            output.classList.remove('hidden');
+            content.innerHTML = '';
+            confluenceItems.innerHTML = '';
+            spinner.classList.remove('hidden');
+            confluenceChecklist.classList.add('hidden');
+            goNoGoSignal.classList.add('hidden');
+            tradeSetup.classList.add('hidden');
+            
+            let prompt;
+            if (type === 'daily') {
+                prompt = `As an expert technical analyst, provide a comprehensive analysis for ${currentTicker} focusing on the Daily and 4-Hour timeframes. 
+                Analyze the overall trend direction, key support and resistance levels, and potential bullish/bearish scenarios. 
+                Include any chart patterns, momentum indicators, and provide clear entry and exit points for day traders.`;
+            } else {
+                prompt = `You are an expert analyst who has mastered the "Snipe Academy" methodology. Analyze ${currentTicker} for scalpers and intraday traders focusing ONLY on 1H, 30m, and 15m timeframes.
+
+## 1. FRESH SUPPLY & DEMAND ZONES
+Identify the most potent fresh Supply (sell) and Demand (buy) zones using these criteria:
+- Sharp price rejection with strong momentum
+- Minimal time spent in zone
+- Formed by indecision candle followed by large-bodied momentum candle
+- Provide exact price ranges for each zone
+
+## 2. MARKET MANIPULATION PATTERNS
+Actively scan for these manipulation patterns:
+- **Fakeouts (Stop Hunts)** near obvious S/R levels where retail stops accumulate
+- **Quasimodo (QML)** patterns: fakeout → break of structure → retest
+- **Compression** patterns signaling liquidity build-up
+
+## 3. TREND & MOMENTUM
+- Current short-term trend structure (HH/HL or LH/LL)
+- Momentum analysis: Are impulse moves strong with full-bodied candles or weak corrective moves?
+
+## 4. ACTIONABLE TRADE IDEAS
+Synthesize all findings into clear scenarios:
+
+**BULLISH SCENARIO:** 
+- Entry trigger: [Specific setup usiOkay cool, I like the PRD, it works out, it created something, which you can see here. But the issue is, I don't like the feel and look of this. Can you make it more like a light and dark feel? And the dark can maybe be navy blue, and the light can maybe be, yeah, maybe just light theme. And keep it specific, just two tone color, like the light thing can be black and white, keeping it simplistic, keeping it clean. And then the selection boxes below it, also keeping it clean, not adding too much color and stuff like that. Maybe make it, yeah, just keep it like that.g methodology terms]
+- Stop Loss: [Logical placement baseOkay cool, I like the PRD, it works out, it created something, which you can see here. But the issue is, I don't like the feel and look of this. Can you make it more like a light and dark feel? And the dark can maybe be navy blue, and the light can maybe be, yeah, maybe just light theme. And keep it specific, just two tone color, like the light thing can be black and white, keeping it simplistic, keeping it clean. And then the selection boxes below it, also keeping it clean, not adding too much color and stuff like that. Maybe make it, yeah, just keep it like that. on zones]
+
+**BEARISH SCENARIO:**
+- Entry trigger: [Specific setup usiOkay cool, I like the PRD, it works out, it created something, which you can see here. But the issue is, I don't like the feel and look of this. Can you make it more like a light and dark feel? And the dark can maybe be navy blue, and the light can maybe be, yeah, maybe just light theme. And keep it specific, just two tone color, like the light thing can be black and white, keeping it simplistic, keeping it clean. And then the selection boxes below it, also keeping it clean, not adding too much color and stuff like that. Maybe make it, yeah, just keep it like that.g methodology terms]  
+- Stop Loss: [Logical placement baseOkay cool, I like the PRD, it works out, it created something, which you can see here. But the issue is, I don't like the feel and look of this. Can you make it more like a light and dark feel? And the dark can maybe be navy blue, and the light can maybe be, yeah, maybe just light theme. And keep it specific, just two tone color, like the light thing can be black and white, keeping it simplistic, keeping it clean. And then the selection boxes below it, also keeping it clean, not adding too much color and stuff like that. Maybe make it, yeah, just keep it like that. on zones]
+
+Structure response with clear headinOkay cool, I like the PRD, it works out, it created something, which you can see here. But the issue is, I don't like the feel and look of this. Can you make it more like a light and dark feel? And the dark can maybe be navy blue, and the light can maybe be, yeah, maybe just light theme. And keep it specific, just two tone color, like the light thing can be black and white, keeping it simplistic, keeping it clean. And then the selection boxes below it, also keeping it clean, not adding too much color and stuff like that. Maybe make it, yeah, just keep it like that.s for each section.`;
+            }
+
+            try {
+                const analysis = await generateTextWithGemini(prompt);
+                const analysisData = JSON.parse(analysis);
+                
+                // Show confluence checklist
+                confluenceChecklist.classList.remove('hidden');
+                
+                // Animate each confluence item
+                analysisData.confluences.forEach((confluence, index) => {
+                    setTimeout(() => {
+                        const item = document.createElement('div');
+                        item.className = 'confluence-item';
+                        item.innerHTML = `
+                            <div class="flex items-center gap-2">
+                                <span class="w-6 h-6 rounded-full flex items-center justify-center 
+                                    ${confluence.met ? 'bg-green-500' : 'bg-red-500'}">
+                                    ${confluence.met ? '✓' : '✗'}
+                                </span>
+                                <span>${confluence.name}</span>
+                            </div>
+                        `;
+                        confluenceItems.appendChild(item);
+                        
+                        // Trigger animation
+                        setTimeout(() => item.classList.add('visible'), 10);
+                    }, index * 400);
+                });
+                
+                // Show Go/No-Go signal after all confluences
+                setTimeout(() => {
+                    const metCount = analysisData.confluences.filter(c => c.met).length;
+                    const totalConfluences = analysisData.confluences.length;
+                    const signalElement = document.getElementById('signalStatus');
+                    const countElement = document.getElementById('confluenceCount');
+                    const messageElement = document.getElementById('signalMessage');
+                    
+                    countElement.textContent = `${metCount} / ${totalConfluences} CONFLUENCES MET`;
+                    
+                    if (metCount >= 5) {
+                        signalElement.className = 'signal-go';
+                        messageElement.textContent = 'SETUP CONFIRMED: IT\'S A GO!';
+                    } else if (metCount >= 3) {
+                        signalElement.className = 'signal-caution';
+                        messageElement.textContent = 'CAUTION ADVISED';
+                    } else {
+                        signalElement.className = 'signal-no';
+                        messageElement.textContent = 'SETUP INVALID';
+                    }
+                    
+                    goNoGoSignal.classList.remove('hidden');
+                    tradeSetup.classList.remove('hidden');
+                    
+                    // Format and show trade setup
+                    const formattedAnalysis = formatTradeSetup(analysisData.tradeSetup);
+                    content.innerHTML = formattedAnalysis;
+                    
+                    spinner.classList.add('hidden');
+                    
+                    // Save to database
+                    saveAnalysisToDB(currentTicker, type, formattedAnalysis);
+                }, analysisData.confluences.length * 400 + 200);
+                
+            } catch (error) {
+                content.innerHTML = `<p class="text-red-400">Error generating analysis: ${error.message}</p>`;
+                spinner.classList.add('hidden');
+            }
+        }
+
+        // Database functions
+        function initDatabase() {
+            if (!localStorage.getItem('TA_DB')) {
+                localStorage.setItem('TA_DB', JSON.stringify([]));
+            }
+        }
+
+        function saveAnalysisToDB(ticker, analysisType, content) {
+            const db = JSON.parse(localStorage.getItem('TA_DB'));
+            const entry = {
+                ticker,
+                analysisType,
+                content,
+                timestamp: new Date().toISOString()
+            };
+            db.push(entry);
+            localStorage.setItem('TA_DB', JSON.stringify(db));
+            
+            // Export to JSON file
+            const dataStr = JSON.stringify(db);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            const exportName = 'TA_Database.json';
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportName);
+            linkElement.click();
+        }
+
+        // Gemini integration
+        async function generateTextWithGemini(prompt) {
+            // Note: In a real implementation, replace with actual API call
+            // This is a mock response for demonstration
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            if (prompt.includes('Snipe Academy')) {
+                return JSON.stringify({
+                    confluences: [
+                        { name: "Market Structure Break", met: true },
+                        { name: "Fresh Supply/Demand Zone", met: true },
+                        { name: "Strong Momentum", met: true },
+                        { name: "Manipulation Pattern", met: true },
+                        { name: "Session Alignment", met: false },
+                        { name: "Higher Timeframe Confluence", met: true },
+                        { name: "Risk/Reward Ratio > 1:2", met: true }
+                    ],
+                    tradeSetup: {
+                        likelihood: "High",
+                        session: "New York",
+                        riskPercentage: "1-2%",
+                        entry: "$161.50-162.00 zone retest",
+                        stopLoss: "$162.80",
+                        takeProfits: ["$158.00", "$156.50"],
+                        analysis: "Bearish scenario presents strong confluence with 5/7 criteria met. Primary entry on retest of $161.50-162.00 zone with bearish engulfing pattern on 15m timeframe. Targets set at previous demand zones."
+                    }
+                });
+            } else {
+                return `## Daily & 4H Analysis for ${currentTicker}
+
+### Overall Trend
+**Daily:** Strong uptrend with higher highs and higher lows
+**4H:** Currently in corrective phase after new high at $165.00
+
+### Key Levels
+**Resistance 1:** $163.50 (previous swing high)
+**Resistance 2:** $165.00 (recent high)
+**Support 1:** $158.00 (confluence with 50-day MA)
+**Support 2:** $155.00 (major demand zone)
+
+### Technical Patterns
+**Ascending Triangle:** Formation on daily chart
+**Bull Flag:** 4H showing potential continuation pattern
+
+### Momentum Indicators
+**RSI:** 58 on daily (neutral-bullish)
+**MACD:** Bullish crossover on daily
+**Volume:** Above average on recent breakout
+
+### Trade Plan
+**Long Entry:** $159.50-160.00 (flag breakout)
+**Stop Loss:** $157.00
+**Target 1:** $163.00
+**Target 2:** $165.50
+
+**Risk/Reward:** 1:2.8`;
+            }
+        }
+
+        // Format trade setup data
+        function formatTradeSetup(tradeSetup) {
+            return `
+                <h3 class="text-lg font-semibold mt-4 mb-2">Trade Setup</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <p><strong>Likelihood:</strong> ${tradeSetup.likelihood}</p>
+                        <p><strong>Optimal Session:</strong> ${tradeSetup.session}</p>
+                        <p><strong>Risk Percentage:</strong> ${tradeSetup.riskPercentage}</p>
+                    </div>
+                    <div>
+                        <p><strong>Entry:</strong> ${tradeSetup.entry}</p>
+                        <p><strong>Stop Loss:</strong> ${tradeSetup.stopLoss}</p>
+                        <p><strong>Take Profits:</strong> ${tradeSetup.takeProfits.join(', ')}</p>
+                    </div>
+                </div>
+                <h3 class="text-lg font-semibold mt-4 mb-2">Analysis</h3>
+                <p>${tradeSetup.analysis}</p>
+            `;
+        }
+
+        // Menu Toggle
+        document.getElementById('menuButton').addEventListener('click', function() {
+            const menu = document.getElementById('menuDropdown');
+            menu.classList.toggle('hidden');
+        });
+
+        // Theme Switching
+        function toggleTheme() {
+            document.body.classList.toggle('dark-theme');
+            localStorage.setItem('theme', document.body.classList.contains('dark-theme') ? 'dark' : 'light');
+            updateChartTheme();
+        }
+
+        function updateChartTheme() {
+            if (chart) {
+                chart.applyOptions({
+                    layout: {
+                        background: { 
+                            type: 'solid', 
+                            color: document.body.classList.contains('dark-theme') ? 'transparent' : 'transparent'
+                        },
+                        textColor: document.body.classList.contains('dark-theme') ? '#d1d4dc' : '#111827',
+                    },
+                    grid: {
+                        vertLines: { color: document.body.classList.contains('dark-theme') ? 'rgba(42, 46, 57, 0.5)' : 'rgba(0, 0, 0, 0.1)' },
+                        horzLines: { color: document.body.classList.contains('dark-theme') ? 'rgba(42, 46, 57, 0.5)' : 'rgba(0, 0, 0, 0.1)' },
+                    }
+                });
+            }
+        }
+
+        // API Key Saving
+        function saveApiKeys() {
+            localStorage.setItem('tradingviewApiKey', document.getElementById('tradingviewApiKey').value);
+            localStorage.setItem('geminiApiKey', document.getElementById('geminiApiKey').value);
+            alert('API Keys saved!');
+        }
+
+        // Portfolio Settings
+        function savePortfolioSettings() {
+            localStorage.setItem('accountSize', document.getElementById('accountSize').value);
+            localStorage.setItem('riskPerTrade', document.getElementById('riskPerTrade').value);
+            localStorage.setItem('tradingPlan', document.getElementById('tradingPlan').value);
+            alert('Portfolio settings saved!');
+        }
+
+        // Load saved settings
+        function loadSettings() {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            if (savedTheme === 'dark') document.body.classList.add('dark-theme');
+            
+            document.getElementById('tradingviewApiKey').value = localStorage.getItem('tradingviewApiKey') || '';
+            document.getElementById('geminiApiKey').value = localStorage.getItem('geminiApiKey') || '';
+            document.getElementById('accountSize').value = localStorage.getItem('accountSize') || '';
+            document.getElementById('riskPerTrade').value = localStorage.getItem('riskPerTrade') || '';
+            document.getElementById('tradingPlan').value = localStorage.getItem('tradingPlan') || '';
+        }
+
+        // Initialize
+        initDatabase();
+        initChart();
+        loadChart();
+        loadSettings();
+    </script>
+<p style="border-radius: 8px; text-align: center; font-size: 12px; color: #fff; margin-top: 16px;position: fixed; left: 8px; bottom: 8px; z-index: 10; background: rgba(0, 0, 0, 0.8); padding: 4px 8px;">Made with <img src="https://enzostvs-deepsite.hf.space/logo.svg" alt="DeepSite Logo" style="width: 16px; height: 16px; vertical-align: middle;display:inline-block;margin-right:3px;filter:brightness(0) invert(1);"><a href="https://enzostvs-deepsite.hf.space" style="color: #fff;text-decoration: underline;" target="_blank" >DeepSite</a> - 🧬 <a href="https://enzostvs-deepsite.hf.space?remix=ryudswift/ta-page" style="color: #fff;text-decoration: underline;" target="_blank" >Remix</a></p></body>
+</html>
